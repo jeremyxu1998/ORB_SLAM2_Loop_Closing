@@ -21,4 +21,7 @@ Vocabulary/ORBvoc.txt
 build/
 *~
 lib/
-
+dataset/
+Thirdparty/DBoW2
+Thirdparty/Pangolin-0.5
+Thirdparty/Pangolin-0.5.zip
