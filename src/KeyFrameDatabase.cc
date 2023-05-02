@@ -24,6 +24,11 @@
 #include "Thirdparty/DBoW2/DBoW2/BowVector.h"
 
 #include<mutex>
+// #include <chrono>
+// using std::chrono::high_resolution_clock;
+// using std::chrono::duration_cast;
+// using std::chrono::duration;
+// using std::chrono::milliseconds;
 
 using namespace std;
 
@@ -72,56 +77,38 @@ void KeyFrameDatabase::clear()
     mvInvertedFile.resize(mpVoc->size());
 }
 
-vector<KeyFrame*> KeyFrameDatabase::DetectLoopCandidatesML(KeyFrame* pKF)
+vector<KeyFrame*> KeyFrameDatabase::DetectLoopCandidatesML(KeyFrame* pKF, vector<KeyFrame*> allKF, float latent_dist_threshold)
 {
     set<KeyFrame*> spConnectedKeyFrames = pKF->GetConnectedKeyFrames();
     list<KeyFrame*> lKFsSharingWords;
-
-    // Search all keyframes that share a word with current keyframes
-    // Discard keyframes connected to the query keyframe
-    {
-        unique_lock<mutex> lock(mMutex);
-
-        for(DBoW2::BowVector::const_iterator vit=pKF->mBowVec.begin(), vend=pKF->mBowVec.end(); vit != vend; vit++)
-        {
-            list<KeyFrame*> &lKFs =   mvInvertedFile[vit->first];
-
-            for(list<KeyFrame*>::iterator lit=lKFs.begin(), lend= lKFs.end(); lit!=lend; lit++)
-            {
-                KeyFrame* pKFi=*lit;
-                if(pKFi->mnLoopQuery!=pKF->mnId)
-                {
-                    pKFi->mnLoopWords=0;
-                    if(!spConnectedKeyFrames.count(pKFi))
-                    {
-                        pKFi->mnLoopQuery=pKF->mnId;
-                        lKFsSharingWords.push_back(pKFi);
-                    }
-                }
-                pKFi->mnLoopWords++;
-            }
-        }
-    }
-
-    if(lKFsSharingWords.empty()) {
-        // cout << "Empty lKFsSharingWords at " << pKF->mnFrameId << endl;
-        return vector<KeyFrame*>();
-    }
     
+    // auto t1 = high_resolution_clock::now();
+
     vector<KeyFrame*> vpLoopCandidates;
-    for(list<KeyFrame*>::iterator lit=lKFsSharingWords.begin(), lend= lKFsSharingWords.end(); lit!=lend; lit++)
+    for(vector<KeyFrame*>::iterator lit=allKF.begin(), lend= allKF.end(); lit!=lend; lit++)
     {
         KeyFrame* pKFi = *lit;
+        // Discard keyframes connected to the query keyframe
+        if (pKFi->mnId == pKF->mnId || spConnectedKeyFrames.count(pKFi))
+            continue;
+        
         // Calculate Euclidian distance between latent vectors
         vector<float> latent_dist = vector<float>(pKF->mImLatent.size());
         transform(pKF->mImLatent.begin(), pKF->mImLatent.end(), pKFi->mImLatent.begin(), latent_dist.begin(), minus<float>());
         float latent_dist_norm = sqrt(inner_product(latent_dist.begin(), latent_dist.end(), latent_dist.begin(), 0.0));
 
-        if (latent_dist_norm < 12000.0) {  // set threshold or pick top K
+        if (latent_dist_norm < latent_dist_threshold) {  // set threshold or pick top K
             cout << "Latent dist from " << pKF->mnFrameId << " to " << pKFi->mnFrameId << ": " << latent_dist_norm << endl;
             vpLoopCandidates.push_back(pKFi);
         }
     }
+
+    // auto t2 = high_resolution_clock::now();
+    // /* Getting number of milliseconds as an integer. */
+    // auto ms_int = duration_cast<milliseconds>(t2 - t1);
+    // if (!vpLoopCandidates.empty())
+    //     cout << "Latent comparison uses " << ms_int.count() << " ms, find " << vpLoopCandidates.size() << " candidates" << endl;
+
     return vpLoopCandidates;
 }
 

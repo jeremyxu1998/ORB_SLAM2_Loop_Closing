@@ -53,7 +53,7 @@ public:
 
    // Loop Detection
    std::vector<KeyFrame *> DetectLoopCandidates(KeyFrame* pKF, float minScore);
-   std::vector<KeyFrame *> DetectLoopCandidatesML(KeyFrame* pKF);
+   std::vector<KeyFrame *> DetectLoopCandidatesML(KeyFrame* pKF, vector<KeyFrame*> allKF, float latent_dist_threshold=12000.0);
 
    // Relocalization
    std::vector<KeyFrame*> DetectRelocalizationCandidates(Frame* F);
