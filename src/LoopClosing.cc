@@ -139,7 +139,8 @@ bool LoopClosing::DetectLoop()
     }
 
     // Query the database imposing the minimum score
-    vector<KeyFrame*> vpCandidateKFs = mpKeyFrameDB->DetectLoopCandidates(mpCurrentKF, minScore);
+    // vector<KeyFrame*> vpCandidateKFs = mpKeyFrameDB->DetectLoopCandidates(mpCurrentKF, minScore);
+    vector<KeyFrame*> vpCandidateKFs = mpKeyFrameDB->DetectLoopCandidatesML(mpCurrentKF);
 
     // If there are no loop candidates, just add new keyframe and return false
     if(vpCandidateKFs.empty())

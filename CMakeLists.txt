@@ -28,12 +28,13 @@ endif()
 
 LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
 
+# add_definitions(-DPYTHON_EXECUTABLE=/home/jiajiexu/miniconda3/envs/slam/lib/python3.8)
+add_subdirectory(Thirdparty/pybind11)
+include_directories(${PROJECT_NAME} Thirdparty/pybind11/include)
+
 find_package(OpenCV 4.7 QUIET)
 if(NOT OpenCV_FOUND)
-   find_package(OpenCV 2.4.3 QUIET)
-   if(NOT OpenCV_FOUND)
-      message(FATAL_ERROR "OpenCV > 2.4.3 not found.")
-   endif()
+   message(FATAL_ERROR "OpenCV > 2.4.3 not found.")
 endif()
 
 find_package(Eigen3 3.1.0 REQUIRED)
@@ -70,6 +71,7 @@ src/Initializer.cc
 src/Viewer.cc
 )
 
+target_link_libraries(${PROJECT_NAME} pybind11::embed)
 target_link_libraries(${PROJECT_NAME}
 ${OpenCV_LIBS}
 ${EIGEN3_LIBS}

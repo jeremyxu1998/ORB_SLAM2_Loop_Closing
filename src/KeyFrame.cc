@@ -23,6 +23,14 @@
 #include "ORBmatcher.h"
 #include<mutex>
 
+#include <pybind11/embed.h>
+#include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
+namespace py = pybind11;
+py::scoped_interpreter guard{};
+py::object autoencoder = py::module::import("python.autoencoder");
+py::object calc_latent_func = autoencoder.attr("calc_latent");
+
 namespace ORB_SLAM2
 {
 
@@ -41,7 +49,8 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB):
     mvInvLevelSigma2(F.mvInvLevelSigma2), mnMinX(F.mnMinX), mnMinY(F.mnMinY), mnMaxX(F.mnMaxX),
     mnMaxY(F.mnMaxY), mK(F.mK), mvpMapPoints(F.mvpMapPoints), mpKeyFrameDB(pKFDB),
     mpORBvocabulary(F.mpORBvocabulary), mbFirstConnection(true), mpParent(NULL), mbNotErase(false),
-    mbToBeErased(false), mbBad(false), mHalfBaseline(F.mb/2), mpMap(pMap)
+    mbToBeErased(false), mbBad(false), mHalfBaseline(F.mb/2), mpMap(pMap),
+    mImGray(F.mImGray.clone())
 {
     mnId=nNextId++;
 
@@ -54,6 +63,14 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB):
     }
 
     SetPose(F.mTcw);    
+
+    // create numpy array from cv::Mat
+    py::array_t<unsigned char> imGraynp = py::array_t<unsigned char>({mImGray.rows, mImGray.cols}, mImGray.data);
+    // Query autoencoder to get the latent representation
+    py::array_t<float> latent = calc_latent_func(imGraynp);
+    py::buffer_info buffer = latent.request();
+    float* data = static_cast<float*>(buffer.ptr);
+    mImLatent = std::vector<float>(data, data + buffer.size);
 }
 
 void KeyFrame::ComputeBoW()

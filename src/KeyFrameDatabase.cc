@@ -72,6 +72,59 @@ void KeyFrameDatabase::clear()
     mvInvertedFile.resize(mpVoc->size());
 }
 
+vector<KeyFrame*> KeyFrameDatabase::DetectLoopCandidatesML(KeyFrame* pKF)
+{
+    set<KeyFrame*> spConnectedKeyFrames = pKF->GetConnectedKeyFrames();
+    list<KeyFrame*> lKFsSharingWords;
+
+    // Search all keyframes that share a word with current keyframes
+    // Discard keyframes connected to the query keyframe
+    {
+        unique_lock<mutex> lock(mMutex);
+
+        for(DBoW2::BowVector::const_iterator vit=pKF->mBowVec.begin(), vend=pKF->mBowVec.end(); vit != vend; vit++)
+        {
+            list<KeyFrame*> &lKFs =   mvInvertedFile[vit->first];
+
+            for(list<KeyFrame*>::iterator lit=lKFs.begin(), lend= lKFs.end(); lit!=lend; lit++)
+            {
+                KeyFrame* pKFi=*lit;
+                if(pKFi->mnLoopQuery!=pKF->mnId)
+                {
+                    pKFi->mnLoopWords=0;
+                    if(!spConnectedKeyFrames.count(pKFi))
+                    {
+                        pKFi->mnLoopQuery=pKF->mnId;
+                        lKFsSharingWords.push_back(pKFi);
+                    }
+                }
+                pKFi->mnLoopWords++;
+            }
+        }
+    }
+
+    if(lKFsSharingWords.empty()) {
+        // cout << "Empty lKFsSharingWords at " << pKF->mnFrameId << endl;
+        return vector<KeyFrame*>();
+    }
+    
+    vector<KeyFrame*> vpLoopCandidates;
+    for(list<KeyFrame*>::iterator lit=lKFsSharingWords.begin(), lend= lKFsSharingWords.end(); lit!=lend; lit++)
+    {
+        KeyFrame* pKFi = *lit;
+        // Calculate Euclidian distance between latent vectors
+        vector<float> latent_dist = vector<float>(pKF->mImLatent.size());
+        transform(pKF->mImLatent.begin(), pKF->mImLatent.end(), pKFi->mImLatent.begin(), latent_dist.begin(), minus<float>());
+        float latent_dist_norm = sqrt(inner_product(latent_dist.begin(), latent_dist.end(), latent_dist.begin(), 0.0));
+
+        if (latent_dist_norm < 12000.0) {  // set threshold or pick top K
+            cout << "Latent dist from " << pKF->mnFrameId << " to " << pKFi->mnFrameId << ": " << latent_dist_norm << endl;
+            vpLoopCandidates.push_back(pKFi);
+        }
+    }
+    return vpLoopCandidates;
+}
+
 
 vector<KeyFrame*> KeyFrameDatabase::DetectLoopCandidates(KeyFrame* pKF, float minScore)
 {
@@ -179,6 +232,7 @@ vector<KeyFrame*> KeyFrameDatabase::DetectLoopCandidates(KeyFrame* pKF, float mi
     vector<KeyFrame*> vpLoopCandidates;
     vpLoopCandidates.reserve(lAccScoreAndMatch.size());
 
+    cout << "Selected keyframes for " << pKF->mnFrameId << ": ";
     for(list<pair<float,KeyFrame*> >::iterator it=lAccScoreAndMatch.begin(), itend=lAccScoreAndMatch.end(); it!=itend; it++)
     {
         if(it->first>minScoreToRetain)
@@ -186,11 +240,13 @@ vector<KeyFrame*> KeyFrameDatabase::DetectLoopCandidates(KeyFrame* pKF, float mi
             KeyFrame* pKFi = it->second;
             if(!spAlreadyAddedKF.count(pKFi))
             {
+                cout << pKFi->mnFrameId << ", ";
                 vpLoopCandidates.push_back(pKFi);
                 spAlreadyAddedKF.insert(pKFi);
             }
         }
     }
+    cout << endl;
 
 
     return vpLoopCandidates;

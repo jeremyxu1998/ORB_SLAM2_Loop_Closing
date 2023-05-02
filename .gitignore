@@ -24,4 +24,8 @@ lib/
 dataset/
 Thirdparty/DBoW2
 Thirdparty/Pangolin-0.5
-Thirdparty/Pangolin-0.5.zip
+
+.vscode
+**__pycache__
+output/
+python/*.pt
