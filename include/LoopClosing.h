@@ -45,7 +45,8 @@ class LoopClosing
 {
 public:
 
-    typedef pair<set<KeyFrame*>,int> ConsistentGroup;    
+    typedef pair<set<KeyFrame*>,int> ConsistentGroup;
+    typedef pair<KeyFrame*,int> ConsistentKF;
     typedef map<KeyFrame*,g2o::Sim3,std::less<KeyFrame*>,
         Eigen::aligned_allocator<std::pair<KeyFrame *const, g2o::Sim3> > > KeyFrameAndPose;
 
@@ -129,6 +130,8 @@ protected:
     std::vector<MapPoint*> mvpLoopMapPoints;
     cv::Mat mScw;
     g2o::Sim3 mg2oScw;
+    // ML Loop detector variables
+    std::vector<ConsistentKF> mvConsistentKFs;
 
     long unsigned int mLastLoopKFid;
 

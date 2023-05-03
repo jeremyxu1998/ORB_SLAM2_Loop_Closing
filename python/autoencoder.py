@@ -53,7 +53,7 @@ class ConvAutoencoder(nn.Module):
 # create a model
 model = ConvAutoencoder().to(device)
 # load model checkpoint
-model.load_state_dict(torch.load('python/model_seq0_10ep.pt')["model_state_dict"])
+model.load_state_dict(torch.load('python/model_big_10ep.pt')["model_state_dict"])
 
 def calc_latent(img, vis=False):
     """

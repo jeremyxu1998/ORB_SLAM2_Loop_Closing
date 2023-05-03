@@ -140,7 +140,7 @@ bool LoopClosing::DetectLoop()
 
     // Query the database imposing the minimum score
     // vector<KeyFrame*> vpCandidateKFs = mpKeyFrameDB->DetectLoopCandidates(mpCurrentKF, minScore);
-    vector<KeyFrame*> vpCandidateKFs = mpKeyFrameDB->DetectLoopCandidatesML(mpCurrentKF);
+    vector<KeyFrame*> vpCandidateKFs = mpKeyFrameDB->DetectLoopCandidatesML(mpCurrentKF, mpMap->GetAllKeyFrames());
 
     // If there are no loop candidates, just add new keyframe and return false
     if(vpCandidateKFs.empty())
@@ -211,6 +211,48 @@ bool LoopClosing::DetectLoop()
 
     // Update Covisibility Consistent Groups
     mvConsistentGroups = vCurrentConsistentGroups;
+
+
+
+    // Find consistency from previous keyframe
+    // TODO: finish debugging
+    cout << "mvConsistentKFs: ";
+    for(size_t iKF=0, iendKF=mvConsistentKFs.size(); iKF<iendKF; iKF++)
+        cout << mvConsistentKFs[iKF].first->mnId << " " << mvConsistentKFs[iKF].second << ", ";
+    cout << endl;
+    vector<ConsistentKF> vCurrentConsistentKFs;
+    for(size_t i=0, iend=vpCandidateKFs.size(); i<iend; i++)
+    {
+        KeyFrame* pCandidateKF = vpCandidateKFs[i];
+        cout << "Looking at pCandidateKF->mnId: " << pCandidateKF->mnId << endl;
+        bool bEnoughConsistent = false;
+        bool bConsistentForSomeGroup = false;
+        for(size_t iKF=0, iendKF=mvConsistentKFs.size(); iKF<iendKF; iKF++)
+        {
+            if(mvConsistentKFs[iKF].first->mnId >= pCandidateKF->mnId - 3)
+            {
+                cout << "Found a match! " << mvConsistentKFs[iKF].first->mnId << endl;
+                bConsistentForSomeGroup = true;
+
+                int nCurrentConsistency = mvConsistentKFs[iKF].second + 1;
+                ConsistentKF ckf = make_pair(pCandidateKF,nCurrentConsistency);
+                vCurrentConsistentKFs.push_back(ckf);
+                if(nCurrentConsistency >= mnCovisibilityConsistencyTh && !bEnoughConsistent)
+                {
+                    // mvpEnoughConsistentCandidates.push_back(pCandidateKF);
+                    bEnoughConsistent=true; //this avoid to insert the same candidate more than once
+                }
+            }
+        }
+
+        // If the group is not consistent with any previous group insert with consistency counter set to zero
+        if(!bConsistentForSomeGroup)
+        {
+            ConsistentKF ckf = make_pair(pCandidateKF,0);
+            vCurrentConsistentKFs.push_back(ckf);
+        }
+        mvConsistentKFs = vCurrentConsistentKFs;
+    }
 
 
     // Add Current Keyframe to database
